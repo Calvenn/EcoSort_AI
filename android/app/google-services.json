@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "653336945048",
+    "project_id": "ecosortai-ce598",
+    "storage_bucket": "ecosortai-ce598.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:653336945048:android:2ce0d206ac2b7275ec8bed",
+        "android_client_info": {
+          "package_name": "com.example.eco_sort_ai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDleZf_56YYxnMu6AB3hme4GbEM-Vg3aUE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
