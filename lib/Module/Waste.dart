@@ -90,6 +90,36 @@ class _WastePageState extends State<WastePage> {
     setState(() => _loading = false);
   }
 
+  String getImageForLabel(String label) {
+    switch (label.toLowerCase()) {
+      case 'plastic':
+      case 'metal':
+        return 'assets/recycle-bin(Orange).png';
+      case 'paper':
+      case 'cardboard':
+        return 'assets/recycle-bin(Blue).png';
+      case 'glass':
+        return 'assets/recycle-bin(Brown).png';
+      default:
+        return 'assets/default-bin.png';
+    }
+  }
+
+  Color getColorForLabel(String label) {
+    switch (label.toLowerCase()) {
+      case 'plastic':
+      case 'metal':
+        return Colors.orange;
+      case 'paper':
+      case 'cardboard':
+        return Colors.blue[800]!;
+      case 'glass':
+        return Colors.brown[700]!;
+      default:
+        return Colors.green;
+    }
+  }
+
   bool shouldRequestFeedback(String? confidenceStr) {
     if (confidenceStr == null) return false;
     final cleaned = confidenceStr.replaceAll('%', '');
@@ -215,7 +245,7 @@ class _WastePageState extends State<WastePage> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  elevation: 4,
+                  elevation: 6,
                   child: Padding(
                     padding: EdgeInsets.all(16),
                     child: Column(
@@ -238,31 +268,38 @@ class _WastePageState extends State<WastePage> {
                             feedbackCorrect: _feedbackCorrect,
                           ),
                         SizedBox(height: 12),
+                        Image.asset(
+                          getImageForLabel(_prediction!),
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(height: 12),
                         Text(
-                          "🗑️ Disposal Tip:",
+                          "${_prediction!.toUpperCase()} WASTE",
                           style: TextStyle(
+                            color: getColorForLabel(_prediction!),
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Important Guidelines",
+                          style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
+                            color: Colors.black,
                           ),
                         ),
                         Text(
-                          disposalInstructions[_prediction!] != null
-                              ? "${disposalInstructions[_prediction!]['tip']}"
-                              : "No disposal instruction found.",
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: Colors.green[800],
-                          ),
+                          disposalInstructions[_prediction!]?['tip'] ??
+                              'No disposal instruction found.',
+                          style: TextStyle(fontSize: 15, color: Colors.black87),
                           textAlign: TextAlign.center,
                         ),
-                        if (disposalInstructions[_prediction!] != null)
-                          Text(
-                            "Example: ${disposalInstructions[_prediction!]['example']}",
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.black54,
-                            ),
-                          ),
+                        const SizedBox(height: 6),
+
                         SizedBox(height: 12),
                         ElevatedButton.icon(
                           icon: Icon(Icons.map),
