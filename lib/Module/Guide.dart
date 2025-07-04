@@ -68,10 +68,10 @@ class GuidePage extends StatelessWidget {
             child: GridView.builder(
               itemCount: docs.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3, // 3 columns
-                mainAxisSpacing: 24,
-                crossAxisSpacing: 24,
-                childAspectRatio: 0.55, // height/width ratio
+                crossAxisCount: 2, // 2 columns
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                childAspectRatio: 0.75, // increase height room
               ),
               itemBuilder: (context, index) {
                 final doc = docs[index];
@@ -81,68 +81,72 @@ class GuidePage extends StatelessWidget {
                 final imagePath = getImageForLabel(label);
                 final color = getColorForLabel(label);
 
-                return Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 40),
-                    Image.asset(
-                      imagePath,
-                      width: 200,
-                      height: 220,
-                      fit: BoxFit.contain,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      label.toUpperCase(),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: color,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
+                return Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      examples,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      softWrap: true,
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: SingleChildScrollView(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.start,
                         children: [
+                          Image.asset(
+                            imagePath,
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.contain,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            label.toUpperCase(),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: color,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            examples,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: color,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
                           const Text(
                             'Important Guidelines:',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 13,
+                              fontSize: 12,
                               color: Colors.black,
                             ),
                           ),
-                          const SizedBox(
-                            height: 4,
-                          ), // spacing between title and tips
+                          const SizedBox(height: 4),
                           Text(
                             tips,
                             textAlign: TextAlign.center,
                             style: const TextStyle(
-                              fontSize: 13,
+                              fontSize: 12,
                               color: Colors.black87,
                             ),
-                            softWrap: true,
-                            overflow: TextOverflow.visible,
                           ),
                         ],
                       ),
                     ),
-                  ],
+                  ),
                 );
               },
             ),

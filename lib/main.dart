@@ -1,25 +1,38 @@
 import 'package:eco_sort_ai/Module/Guide.dart';
+import 'package:eco_sort_ai/Module/RedeemVoucher.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'config/Notifier.dart';
+import 'Module/Waste.dart';
+import 'Module/Login.dart';
+import 'Module/Register.dart';
+import 'Module/ProfilePage.dart';
 import 'config/Widget_Tree.dart';
+import 'config/Map.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'Module/Home.dart';
-import 'Module/Waste.dart';
-import '../config/Map.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+final RouteObserver<ModalRoute<void>> routeObserver =
+    RouteObserver<ModalRoute<void>>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // firebase will check if the user is logged in previously or not
+  // if yes, it will automatically redirect to the home page
+  // if not, it will redirect to the login page
 
-  if (!kIsWeb) {
+  if (!kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.linux)) {
     await windowManager.ensureInitialized();
     windowManager.setTitle('EcoSort AI');
   }
 
-  runApp(Main());
+  runApp(const Main());
 }
 
 class Main extends StatefulWidget {
@@ -36,21 +49,34 @@ class _MainState extends State<Main> {
       valueListenable: isDarkModeNotifier,
       builder: (BuildContext context, dynamic isDarkMode, Widget? child) {
         return MaterialApp(
-          title: 'Eco Sort AI',
+          navigatorObservers: [routeObserver],
+          title: 'EcoSort AI',
           debugShowCheckedModeBanner: false,
-          initialRoute: '/',
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
+          ),
           routes: {
             '/classify': (context) => WastePage(),
             '/map': (context) => MapPage(),
             '/guide': (context) => GuidePage(),
+            '/login': (context) => const LoginPage(),
+            '/register': (context) => const RegisterPage(),
+            '/profile': (context) => const ProfilePage(),
+            '/redeem': (context) => const RedeemPage(),
+            '/home': (context) => const WidgetTree(title: 'EcoSort AI'),
           },
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.deepPurple,
-              //brightness: isDarkMode ? Brightness.dark : Brightness.light,
-            ),
+          home: StreamBuilder(
+            stream: FirebaseAuth.instance.authStateChanges(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (snapshot.hasData) {
+                return const WidgetTree(title: 'EcoSort AI');
+              } else {
+                return const LoginPage();
+              }
+            },
           ),
-          home: WidgetTree(title: 'EcoSort AI'),
         );
       },
     );

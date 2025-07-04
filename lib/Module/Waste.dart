@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
@@ -6,8 +8,10 @@ import 'dart:convert';
 import '../config/Map.dart';
 import '../config/Feedback.dart';
 import '../config/Correction.dart';
+import '../config/ImgDetector.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 
 class WastePage extends StatefulWidget {
   @override
@@ -15,12 +19,12 @@ class WastePage extends StatefulWidget {
 }
 
 class _WastePageState extends State<WastePage> {
-  File? _image;
+  File? _image; // For mobile
+  String? _webImageUrl; // For web
   String? _prediction;
   String? _confidence;
   bool _loading = false;
   bool? _feedbackCorrect;
-
   Map<String, dynamic> disposalInstructions = {};
   final picker = ImagePicker();
 
@@ -46,28 +50,65 @@ class _WastePageState extends State<WastePage> {
     });
   }
 
+  Future<void> pickImageFromCamera() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.camera);
+
+    if (pickedFile != null) {
+      uploadImage(File(pickedFile.path));
+    }
+  }
+
   Future<void> pickImage() async {
     final picked = await picker.pickImage(source: ImageSource.gallery);
     if (picked != null) {
       setState(() {
-        _image = File(picked.path);
+        if (kIsWeb) {
+          _webImageUrl = picked.path; // This is a blob URL
+          _image = null;
+        } else {
+          _image = File(picked.path);
+          _webImageUrl = null;
+        }
         _prediction = null;
         _confidence = null;
         _feedbackCorrect = null;
       });
-      await uploadImage(_image!);
+      await uploadImage(
+        File(picked.path),
+      ); // For both, you can still use picked.path
     }
   }
 
   Future<void> uploadImage(File image) async {
-    setState(() => _loading = true);
-    final uri = Uri.parse('http://127.0.0.1:5000/predict');
+    setState(() {
+      _loading = true;
+      _image = image;
+      _prediction = null;
+      _confidence = null;
+      _feedbackCorrect = null;
+    });
+
+    final imageHash = await ImageUploader.computeImageHash(image);
+    final isDuplicate = await ImageUploader.isDuplicateUpload(imageHash);
+
+    if (isDuplicate) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("You've already uploaded this image before.")),
+        );
+      }
+      return;
+    }
+
+    final uri = Uri.parse('http://192.168.0.135:5000/predict');
     final request = http.MultipartRequest('POST', uri)
       ..files.add(await http.MultipartFile.fromPath('file', image.path));
 
     try {
       final response = await request.send();
       final responseBody = await response.stream.bytesToString();
+
       if (response.statusCode == 200) {
         final data = json.decode(responseBody);
         setState(() {
@@ -81,12 +122,16 @@ class _WastePageState extends State<WastePage> {
           _confidence = null;
         });
       }
-    } catch (e) {
-      setState(() {
-        _prediction = "Prediction error";
-        _confidence = null;
-      });
+    } catch (e, stacktrace) {
+      print('❗ Upload error: $e');
+      if (mounted) {
+        setState(() {
+          _prediction = "Prediction error";
+          _confidence = null;
+        });
+      }
     }
+
     setState(() => _loading = false);
   }
 
@@ -127,20 +172,35 @@ class _WastePageState extends State<WastePage> {
     return confValue != null && confValue < 85;
   }
 
-  Future<String?> saveCorrectionImageLocally(File image, String label) async {
-    try {
-      final correctionsDir = Directory('corrections');
-      if (!await correctionsDir.exists()) {
-        await correctionsDir.create(recursive: true);
-      }
-      final fileName =
-          '${label}_${DateTime.now().millisecondsSinceEpoch}${path.extension(image.path)}';
-      final savedImagePath = path.join(correctionsDir.path, fileName);
-      await image.copy(savedImagePath);
-      return savedImagePath;
-    } catch (e) {
-      return null;
-    }
+  Future<bool> uploadToGitHub(File imageFile, String label) async {
+    final token =
+        '...'; // GitHub token
+    final repoOwner = 'Calvenn';
+    final repoName = 'Waste_Classifier';
+    final fileName = '${label}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final path = 'corrections/$fileName';
+
+    final bytes = await imageFile.readAsBytes();
+    final base64Image = base64Encode(bytes);
+
+    final url = Uri.parse(
+      'https://api.github.com/repos/$repoOwner/$repoName/contents/$path',
+    );
+
+    final response = await http.put(
+      url,
+      headers: {
+        'Authorization': 'token $token',
+        'Accept': 'application/vnd.github.v3+json',
+      },
+      body: json.encode({
+        'message': 'Upload wrong image: $label',
+        'content': base64Image,
+      }),
+    );
+
+    print("📦 GitHub response: ${response.statusCode} ${response.body}");
+    return response.statusCode == 201;
   }
 
   Future<bool> saveCorrectionToFirestore(String label, String localPath) async {
@@ -157,31 +217,130 @@ class _WastePageState extends State<WastePage> {
   }
 
   void handleFeedback(bool isCorrect) async {
+    print("📝 Feedback received: \$isCorrect");
+
     setState(() => _feedbackCorrect = isCorrect);
-    if (isCorrect) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Thanks for your feedback!")));
+
+    if (_image == null) {
+      print("❌ No image found.");
       return;
     }
 
+    // ✅ Compute hash early so it's available for both cases
+    final imageHash = await ImageUploader.computeImageHash(_image!);
+
+    if (isCorrect) {
+      print("✅ Logging predicted label: \$_prediction");
+
+      await logScan(_prediction!, imageHash);
+      await addPoints(10); // Add 10 points for accepted prediction
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Thanks for your feedback! +10 points")),
+        );
+      }
+      return;
+    }
+
+    print("❗ Prediction was incorrect. Asking for corrected label...");
     final correctedLabel = await showDialog<String>(
       context: context,
       builder: (context) => CorrectLabelDialog(),
     );
 
-    if (correctedLabel != null && _image != null) {
-      final localPath = await saveCorrectionImageLocally(
-        _image!,
-        correctedLabel,
-      );
-      if (localPath != null) {
-        await saveCorrectionToFirestore(correctedLabel, localPath);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Correction saved locally and recorded.")),
-        );
-      }
+    if (correctedLabel == null) {
+      print("❌ User did not enter correction.");
+      return;
     }
+
+    print("🖊️ Corrected label: \$correctedLabel");
+
+    final uploaded = await uploadToGitHub(_image!, correctedLabel);
+    if (uploaded) {
+      print("✅ Uploaded to GitHub successfully");
+      await FirebaseFirestore.instance.collection('corrections').add({
+        'label': correctedLabel,
+        'location': 'GitHub',
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    } else {
+      print("❌ Failed to upload to GitHub");
+      return;
+    }
+
+    await logScan(correctedLabel, imageHash);
+    await addPoints(15); // Add 15 points for correction
+
+    print("📜 Correction logged to history");
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Correction saved and logged. +15 points")),
+      );
+    }
+  }
+
+  Future<void> updateScanStats(String type) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final userRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid);
+    final doc = await userRef.get();
+    final currentStats = Map<String, dynamic>.from(
+      doc.data()?['scanStats'] ?? {},
+    );
+    final count = (currentStats[type] ?? 0) + 1;
+    currentStats[type] = count;
+
+    await userRef.update({'scanStats': currentStats});
+    print("📊 Updated scanStats: $type -> $count");
+  }
+
+  Future<void> logScan(String type, String imageHash) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final userDoc = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid);
+    final historyRef = userDoc.collection('history');
+
+    final duplicate = await historyRef
+        .where('hash', isEqualTo: imageHash)
+        .limit(1)
+        .get();
+    if (duplicate.docs.isNotEmpty) {
+      print("⚠️ Duplicate scan detected, not logging again.");
+      return;
+    }
+
+    await historyRef.add({
+      'type': type,
+      'hash': imageHash,
+      'timestamp': Timestamp.now(),
+    });
+
+    await updateScanStats(type);
+    print('📜 Scan logged: $type with hash $imageHash at ${DateTime.now()}');
+  }
+
+  Future<void> addPoints(int amount) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final userDoc = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid);
+    await FirebaseFirestore.instance.runTransaction((transaction) async {
+      final snapshot = await transaction.get(userDoc);
+      final currentPoints = (snapshot.data()?['points'] ?? 0) as int;
+      transaction.update(userDoc, {'points': currentPoints + amount});
+    });
+
+    print('✨ Points awarded: +$amount');
   }
 
   @override
@@ -202,32 +361,48 @@ class _WastePageState extends State<WastePage> {
         child: Center(
           child: Column(
             children: [
-              _image != null
+              (_image != null || _webImageUrl != null)
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(15),
-                      child: Image.file(
-                        _image!,
-                        height: 200,
-                        fit: BoxFit.cover,
-                      ),
+                      child: kIsWeb
+                          ? Image.network(
+                              _webImageUrl!,
+                              height: 200,
+                              fit: BoxFit.cover,
+                            )
+                          : Image.file(_image!, height: 200, fit: BoxFit.cover),
                     )
                   : Icon(
                       Icons.image_outlined,
-                      size: 100,
+                      size: 110,
                       color: Colors.grey[400],
                     ),
               const SizedBox(height: 20),
               ElevatedButton.icon(
-                onPressed: pickImage,
-                icon: Icon(Icons.add_photo_alternate),
-                label: Text("Select Image"),
+                onPressed: pickImageFromCamera,
+                icon: Icon(Icons.camera_alt),
+                label: Text("Take Photo"),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  padding: EdgeInsets.symmetric(horizontal: 30, vertical: 14),
+                  padding: EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                ),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: pickImage,
+                icon: Icon(Icons.add_photo_alternate),
+                label: Text("Upload from Gallery"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 30, vertical: 12),
                 ),
               ),
               const SizedBox(height: 20),
@@ -250,17 +425,30 @@ class _WastePageState extends State<WastePage> {
                     padding: EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        Text(
-                          "🧠 Prediction: $_prediction",
-                          style: TextStyle(fontSize: 18),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.check_circle, color: Colors.red),
+                            Text(
+                              " Prediction: $_prediction",
+                              style: TextStyle(fontSize: 18),
+                            ),
+                          ],
                         ),
                         SizedBox(height: 6),
-                        Text(
-                          _confidence != null
-                              ? "🎯 Confidence: ${double.tryParse(_confidence!.replaceAll('%', ''))?.toStringAsFixed(2) ?? _confidence}%"
-                              : "🎯 Confidence: $_confidence",
-                          style: TextStyle(fontSize: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.info, color: Colors.blue),
+                            Text(
+                              _confidence != null
+                                  ? " Confidence: ${double.tryParse(_confidence!.replaceAll('%', ''))?.toStringAsFixed(2) ?? _confidence}%"
+                                  : " Confidence: $_confidence",
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          ],
                         ),
+
                         SizedBox(height: 10),
                         if (_feedbackCorrect != true)
                           FeedbackWidget(
