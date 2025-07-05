@@ -23,7 +23,7 @@ class _LoginPageState extends State<LoginPage> {
       );
       Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
-      setState(() => errorMessage = "❗ ${e.toString().split(']').last.trim()}");
+      setState(() => errorMessage = " ${e.toString().split(']').last.trim()}");
     }
   }
 

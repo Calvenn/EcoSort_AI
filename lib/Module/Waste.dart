@@ -101,7 +101,7 @@ class _WastePageState extends State<WastePage> {
       return;
     }
 
-    final uri = Uri.parse('http://192.168.0.135:5000/predict');
+    final uri = Uri.parse('http://172.20.10.4:5000/predict');
     final request = http.MultipartRequest('POST', uri)
       ..files.add(await http.MultipartFile.fromPath('file', image.path));
 
@@ -115,6 +115,8 @@ class _WastePageState extends State<WastePage> {
           _prediction = data['prediction'];
           _confidence = data['confidence'];
           _feedbackCorrect = shouldRequestFeedback(_confidence) ? null : true;
+          logScan(_prediction!, imageHash);
+          addPoints(10);
         });
       } else {
         setState(() {
@@ -123,7 +125,7 @@ class _WastePageState extends State<WastePage> {
         });
       }
     } catch (e, stacktrace) {
-      print('❗ Upload error: $e');
+      print('Upload error: $e');
       if (mounted) {
         setState(() {
           _prediction = "Prediction error";
@@ -173,8 +175,7 @@ class _WastePageState extends State<WastePage> {
   }
 
   Future<bool> uploadToGitHub(File imageFile, String label) async {
-    final token =
-        '...'; // GitHub token
+    final token = '..'; // GitHub token
     final repoOwner = 'Calvenn';
     final repoName = 'Waste_Classifier';
     final fileName = '${label}_${DateTime.now().millisecondsSinceEpoch}.jpg';
@@ -199,7 +200,7 @@ class _WastePageState extends State<WastePage> {
       }),
     );
 
-    print("📦 GitHub response: ${response.statusCode} ${response.body}");
+    print("GitHub response: ${response.statusCode} ${response.body}");
     return response.statusCode == 201;
   }
 
@@ -217,20 +218,20 @@ class _WastePageState extends State<WastePage> {
   }
 
   void handleFeedback(bool isCorrect) async {
-    print("📝 Feedback received: \$isCorrect");
+    print("Feedback received: \$isCorrect");
 
     setState(() => _feedbackCorrect = isCorrect);
 
     if (_image == null) {
-      print("❌ No image found.");
+      print("No image found.");
       return;
     }
 
-    // ✅ Compute hash early so it's available for both cases
+    // Compute hash early so it's available for both cases
     final imageHash = await ImageUploader.computeImageHash(_image!);
 
     if (isCorrect) {
-      print("✅ Logging predicted label: \$_prediction");
+      print("Logging predicted label: \$_prediction");
 
       await logScan(_prediction!, imageHash);
       await addPoints(10); // Add 10 points for accepted prediction
@@ -243,60 +244,42 @@ class _WastePageState extends State<WastePage> {
       return;
     }
 
-    print("❗ Prediction was incorrect. Asking for corrected label...");
+    print("Prediction was incorrect. Asking for corrected label...");
     final correctedLabel = await showDialog<String>(
       context: context,
       builder: (context) => CorrectLabelDialog(),
     );
 
     if (correctedLabel == null) {
-      print("❌ User did not enter correction.");
+      print("User did not enter correction.");
       return;
     }
 
-    print("🖊️ Corrected label: \$correctedLabel");
+    print("Corrected label: \$correctedLabel");
 
     final uploaded = await uploadToGitHub(_image!, correctedLabel);
     if (uploaded) {
-      print("✅ Uploaded to GitHub successfully");
+      print("Uploaded to GitHub successfully");
       await FirebaseFirestore.instance.collection('corrections').add({
         'label': correctedLabel,
         'location': 'GitHub',
         'timestamp': FieldValue.serverTimestamp(),
       });
     } else {
-      print("❌ Failed to upload to GitHub");
+      print("Failed to upload to GitHub");
       return;
     }
 
     await logScan(correctedLabel, imageHash);
     await addPoints(15); // Add 15 points for correction
 
-    print("📜 Correction logged to history");
+    print("Correction logged to history");
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Correction saved and logged. +15 points")),
       );
     }
-  }
-
-  Future<void> updateScanStats(String type) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    final userRef = FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid);
-    final doc = await userRef.get();
-    final currentStats = Map<String, dynamic>.from(
-      doc.data()?['scanStats'] ?? {},
-    );
-    final count = (currentStats[type] ?? 0) + 1;
-    currentStats[type] = count;
-
-    await userRef.update({'scanStats': currentStats});
-    print("📊 Updated scanStats: $type -> $count");
   }
 
   Future<void> logScan(String type, String imageHash) async {
@@ -313,7 +296,7 @@ class _WastePageState extends State<WastePage> {
         .limit(1)
         .get();
     if (duplicate.docs.isNotEmpty) {
-      print("⚠️ Duplicate scan detected, not logging again.");
+      print("Duplicate scan detected, not logging again.");
       return;
     }
 
@@ -323,8 +306,7 @@ class _WastePageState extends State<WastePage> {
       'timestamp': Timestamp.now(),
     });
 
-    await updateScanStats(type);
-    print('📜 Scan logged: $type with hash $imageHash at ${DateTime.now()}');
+    print('Scan logged: $type with hash $imageHash at ${DateTime.now()}');
   }
 
   Future<void> addPoints(int amount) async {
@@ -340,7 +322,7 @@ class _WastePageState extends State<WastePage> {
       transaction.update(userDoc, {'points': currentPoints + amount});
     });
 
-    print('✨ Points awarded: +$amount');
+    print('Points awarded: +$amount');
   }
 
   @override

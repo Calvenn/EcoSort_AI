@@ -197,7 +197,6 @@ class _WidgetTreeState extends State<WidgetTree> {
               ),
             ],
           ),
-          //bottomNavigationBar: isWideScreen ? null : NavBar(),
         );
       },
     );

@@ -24,7 +24,7 @@ class _RegisterPageState extends State<RegisterPage> {
       await createUserIfNotExists();
       Navigator.pop(context); // Return to Login
     } catch (e) {
-      setState(() => errorMessage = "❗ ${e.toString().split(']').last.trim()}");
+      setState(() => errorMessage = " ${e.toString().split(']').last.trim()}");
     }
   }
 
