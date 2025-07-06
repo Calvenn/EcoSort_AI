@@ -19,13 +19,18 @@ EcoSort AI is a Flutter-based mobile application that uses AI to help users iden
 
 ---
 
-## 🧠 AI Integration
+## 🛠️ Flask Server Setup (for AI)
 
-The app sends images to a **Flask backend model** via HTTP:
+EcoSort AI uses a **Flask-based AI server** to classify waste images using a ResNet18 model. You can either:
 
-```bash
-POST http://192.168.0.135:5000/predict (refer to own server ip)
-```
+- 🌐 Use the deployed server (recommended)  
+- 🖥️ Run the server locally for development
+
+### ☁️ Live AI Server (Render)
+
+The AI server is deployed on [Render](https://render.com) and accessible at: https://ecosort-0qot.onrender.com
+
+Flutter app sends a `POST` request to this endpoint with an image and receives a prediction and confidence score.
 
 Returns:
 ```json
@@ -35,7 +40,11 @@ Returns:
 }
 ```
 
----
+### 🧠 AI Server Code Repository
+
+The source code for the Flask server is available here:
+
+🔗 [`Waste_Classifier`](https://github.com/Calvenn/Waste_Classifier)
 
 ## 🔥 Firebase Firestore Structure
 
@@ -90,7 +99,7 @@ The AI model was trained using publicly available waste classification datasets:
 - [RealWaste Dataset – by joebeachcapital on Kaggle](https://www.kaggle.com/datasets/joebeachcapital/realwaste)  
 - [Garbage Classification Dataset – by asdasdasasdas on Kaggle](https://www.kaggle.com/datasets/asdasdasasdas/garbage-classification)
 
-These datasets contain labeled images of waste items including plastic, metal, cardboard, glass, and more. They served as the foundation for training the ResNet-based image classifier used in EcoSort AI.
+These datasets contain labeled images of waste items including plastic, metal, cardboard, glass, paper, food and trash(other). They served as the foundation for training the ResNet-based image classifier used in EcoSort AI.
 
 ---
 
@@ -155,12 +164,6 @@ flutter run
 
 ---
 
-## 🛠️ Flask Server Setup (for AI)
-
-> Optional – if you're testing the AI model locally.
-
----
-
 ## 🔒 Duplicate Image Detection
 
 To prevent users from cheating by uploading the same image repeatedly
@@ -181,7 +184,8 @@ To prevent users from cheating by uploading the same image repeatedly
 - UI/UX by Calven  
 - AI Model: Waste Classification using ResNet18  
 - Maps: OpenStreetMap  
-- Backend: Flask + Firebase  
+- Backend: Firebase  
+- Cloud Server: Render
 
 ---
 

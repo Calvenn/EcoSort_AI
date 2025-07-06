@@ -101,7 +101,7 @@ class _WastePageState extends State<WastePage> {
       return;
     }
 
-    final uri = Uri.parse('http://172.20.10.4:5000/predict');
+    final uri = Uri.parse('https://ecosort-0qot.onrender.com/predict');
     final request = http.MultipartRequest('POST', uri)
       ..files.add(await http.MultipartFile.fromPath('file', image.path));
 
@@ -175,7 +175,7 @@ class _WastePageState extends State<WastePage> {
   }
 
   Future<bool> uploadToGitHub(File imageFile, String label) async {
-    final token = '..'; // GitHub token
+    final token = ''; // GitHub token
     final repoOwner = 'Calvenn';
     final repoName = 'Waste_Classifier';
     final fileName = '${label}_${DateTime.now().millisecondsSinceEpoch}.jpg';
