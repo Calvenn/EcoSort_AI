@@ -124,7 +124,7 @@ class _RedeemPageState extends State<RedeemPage> {
                                       );
                                       setState(
                                         () {},
-                                      ); // ✅ Now works in StatefulWidget
+                                      ); 
                                     }
                                   : null,
                               child: const Text("Redeem"),

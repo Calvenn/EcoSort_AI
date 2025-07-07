@@ -148,7 +148,7 @@ class _WastePageState extends State<WastePage> {
       case 'glass':
         return 'assets/recycle-bin(Brown).png';
       default:
-        return 'assets/default-bin.png';
+        return '';
     }
   }
 

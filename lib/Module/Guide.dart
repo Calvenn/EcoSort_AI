@@ -13,7 +13,7 @@ class GuidePage extends StatelessWidget {
       case 'glass waste':
         return 'assets/recycle-bin(Brown).png';
       default:
-        return 'assets/default-bin.png';
+        return '';
     }
   }
 
@@ -26,7 +26,7 @@ class GuidePage extends StatelessWidget {
       case 'glass waste':
         return Colors.brown[700]!;
       default:
-        return Colors.green;
+        return Colors.grey;
     }
   }
 
@@ -63,93 +63,87 @@ class GuidePage extends StatelessWidget {
 
           final docs = snapshot.data!.docs;
 
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: GridView.builder(
-              itemCount: docs.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2, // 2 columns
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 0.75, // increase height room
-              ),
-              itemBuilder: (context, index) {
-                final doc = docs[index];
-                final label = doc['label'];
-                final tips = doc['tip'] ?? 'No tip available.';
-                final examples = doc['example'] ?? '';
-                final imagePath = getImageForLabel(label);
-                final color = getColorForLabel(label);
+          return PageView.builder(
+            itemCount: docs.length,
+            controller: PageController(viewportFraction: 0.9),
+            itemBuilder: (context, index) {
+              final doc = docs[index];
+              final label = doc['label'];
+              final tips = doc['tip'] ?? 'No tip available.';
+              final examples = doc['example'] ?? '';
+              final imagePath = getImageForLabel(label);
+              final color = getColorForLabel(label);
 
-                return Container(
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24.0),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black12,
-                        blurRadius: 4,
-                        offset: Offset(0, 2),
+                        blurRadius: 8,
+                        offset: Offset(0, 4),
                       ),
                     ],
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          Image.asset(
-                            imagePath,
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.contain,
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        Image.asset(
+                          imagePath,
+                          width: 250,
+                          height: 250,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(height: 25),
+                        Text(
+                          label.toUpperCase(),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 30,
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            label.toUpperCase(),
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: color,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          examples,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            examples,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: color,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Important Guidelines:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 24,
+                            color: Colors.black,
                           ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Important Guidelines:',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                              color: Colors.black,
-                            ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          tips,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            color: Colors.black87,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            tips,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           );
         },
       ),
